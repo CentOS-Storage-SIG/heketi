@@ -1,15 +1,15 @@
 %if 0%{?fedora}
 %global with_devel 1
-%global with_bundled 0
-%global with_debug 1
-%global with_check 1
-%global with_unit_test 1
-%else
-%global with_devel 1
 %global with_bundled 1
 %global with_debug 0
 %global with_check 1
 %global with_unit_test 1
+%else
+%global with_devel 0
+%global with_bundled 1
+%global with_debug 0
+%global with_check 1
+%global with_unit_test 0
 %endif
 
 # Determine if systemd will be used
@@ -30,11 +30,11 @@
 # https://github.com/heketi/heketi
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 %global import_path     %{provider_prefix}
-%global commit          6563551111f7178b679866e85a0682325929d037
+%global commit          c5f0f5856560148536d51f32cd96d22e6968f2b8
 %global shortcommit     %(c=%{commit}; echo ${c:0:7})
 
 Name:           %{repo}
-Version:        1.0.2
+Version:        4.0.0
 Release:        1%{?dist}
 Summary:        RESTful based volume management framework for GlusterFS
 License:        ASL 2.0
@@ -42,7 +42,6 @@ URL:            https://%{provider_prefix}
 Source0:        https://%{provider_prefix}/archive/%{commit}/%{repo}-%{shortcommit}.tar.gz
 Source1:        %{name}.service
 Source2:        %{name}.json
-Source3:        %{name}-godeps-3f4a5b1.tar.gz
 Source4:        %{name}.initd
 
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
@@ -146,6 +145,42 @@ This package contains unit tests for project
 providing packages with %{import_path} prefix.
 %endif
 
+%package client
+Summary:        Command line client for Heketi
+Group:          System Environment/Libraries
+License:        ASL 2.0
+
+%description client
+%{summary}
+
+Command line program to interact with Heketi
+
+%package templates
+Summary:        Heketi and GlusterFS templates for Heketi
+Group:          System Environment/Libraries
+License:        ASL 2.0
+
+%description templates
+%{summary}
+
+Heketi and GlusterFS templates for Heketi
+
+
+%package -n python-heketi
+Summary:        Python libraries for Heketi
+Group:          System Environment/Libraries
+License:        ASL 2.0
+Requires:       python-jwt
+Requires:       python-requests
+BuildRequires:  python-setuptools
+BuildRequires:  python2-devel
+
+%description -n python-heketi
+%{summary}
+
+This package contains python libraries for interacting with Heketi
+
+
 %prep
 %setup -q -n %{repo}-%{commit}
 
@@ -156,32 +191,74 @@ ln -s $(pwd) src/%{provider}.%{provider_tld}/%{project}/%{repo}
 # ! Bundled
 %if ! 0%{?with_bundled}
 export GOPATH=$(pwd):%{gopath}
-export LDFLAGS="-X main.HEKETI_VERSION %{version}"
+export LDFLAGS="-X main.HEKETI_VERSION=%{version}"
 %gobuild -o %{name}
 
-export LDFLAGS="-X main.HEKETI_CLI_VERSION %{version}"
+export LDFLAGS="-X main.HEKETI_CLI_VERSION=%{version}"
 cd client/cli/go
 %gobuild -o %{name}-cli
+cd ../../..
 %else
 
 # Bundled
+
+# workaround for vendor directory which doesn't have src
+# which is needed by the GOPATH
+cp -a $(pwd)/vendor/* src
+mv vendor _vendor
+
+# Setup GOPATH
 export GOPATH=$(pwd):%{gopath}
-tar xzf %{SOURCE3}
 
 %define gohash %(head -c20 /dev/urandom | od -An -tx1 | tr -d '\ \\n')
 
-go build -ldflags "-X main.HEKETI_VERSION %{version} -B 0x%{gohash}" -o %{name}
+# -s strips debug information
+%if 0%{?rhel} && 0%{?rhel} > 6
+go build -ldflags "-X main.HEKETI_VERSION %{version} -B 0x%{gohash} -s -extldflags '-z relro -z now'" -o %{name}
 
 cd client/cli/go
-go build -ldflags "-X main.HEKETI_CLI_VERSION %{version} -B 0x%{gohash}" -o %{name}-cli
+go build -ldflags "-X main.HEKETI_CLI_VERSION %{version} -B 0x%{gohash} -s -extldflags '-z relro -z now'" -o %{name}-cli
+cd ../../..
+%else
+go build -ldflags "-X main.HEKETI_VERSION=%{version} -B 0x%{gohash} -s -extldflags '-z relro -z now'" -o %{name}
+
+cd client/cli/go
+go build -ldflags "-X main.HEKETI_CLI_VERSION=%{version} -B 0x%{gohash} -s -extldflags '-z relro -z now'" -o %{name}-cli
+cd ../../..
+%endif
 
 %endif
 
+# Python
+cd client/api/python
+%{__python2} setup.py build
+
 %install
+# Python
+cd client/api/python
+%{__python2} setup.py install -O1 --skip-build --root %{buildroot}
+cd ../../..
+
+install -D -p -m 0755 client/cli/go/%{name}-cli.sh \
+  %{buildroot}%{_datadir}/bash-completion/completions/%{name}-cli.sh
 install -D -p -m 0755 %{name} %{buildroot}%{_bindir}/%{name}
 install -D -p -m 0755 client/cli/go/%{name}-cli %{buildroot}%{_bindir}/%{name}-cli
 install -d -m 0755 %{buildroot}%{_sysconfdir}/%{name}
 install -m 644 -t %{buildroot}%{_sysconfdir}/%{name} %{SOURCE2}
+install -D -p -m 0644 doc/man/heketi-cli.8 %{buildroot}%{_mandir}/man8/heketi-cli.8
+install -D -p -m 0644 client/cli/go/topology-sample.json \
+  %{buildroot}%{_datadir}/%{name}/topology-sample.json
+install -D -p -m 0644 extras/openshift/templates/glusterfs-template.json \
+  %{buildroot}%{_datadir}/%{name}/templates/glusterfs-template.json
+install -D -p -m 0644 extras/openshift/templates/heketi-template.json \
+  %{buildroot}%{_datadir}/%{name}/templates/heketi-template.json
+install -D -p -m 0644 extras/openshift/templates/deploy-heketi-template.json \
+  %{buildroot}%{_datadir}/%{name}/templates/deploy-heketi-template.json
+install -D -p -m 0644 extras/openshift/endpoint/sample-gluster-endpoint.json \
+  %{buildroot}%{_datadir}/%{name}/openshift/sample-gluster-endpoint.json
+install -D -p -m 0644 extras/openshift/service/sample-gluster-service.json \
+  %{buildroot}%{_datadir}/%{name}/openshift/sample-gluster-service.json
+
 %if 0%{?with_systemd}
 install -D -p -m 0644 %{SOURCE1} %{buildroot}%{_unitdir}/%{name}.service
 %else
@@ -229,15 +306,13 @@ export GOPATH=%{buildroot}/%{gopath}:%{gopath}
 %gotest %{import_path}/apps/glusterfs
 %gotest %{import_path}/client/api/go-client
 %gotest %{import_path}/middleware
-%gotest %{import_path}/rest
-%gotest %{import_path}/utils
 %else
 export GOPATH=$(pwd):%{gopath}
 go test -v %{import_path}/apps/glusterfs
 go test -v %{import_path}/client/api/go-client
 go test -v %{import_path}/middleware
-go test -v %{import_path}/rest
-go test -v %{import_path}/utils
+go test -v %{import_path}/executors/kubeexec
+go test -v %{import_path}/executors/sshexec
 %endif
 %endif
 
@@ -275,13 +350,32 @@ getent passwd %{name} >/dev/null || useradd -r -g %{name} -d %{_sharedstatedir}/
 %doc README.md AUTHORS
 %config(noreplace) %{_sysconfdir}/%{name}
 %{_bindir}/%{name}
-%{_bindir}/%{name}-cli
 %dir %attr(-,%{name},%{name}) %{_sharedstatedir}/%{name}
 %if 0%{?with_systemd}
 %{_unitdir}/%{name}.service
 %else
 %{_sysconfdir}/init.d/%{name}
 %endif
+
+%files -n python-heketi
+%license LICENSE
+%doc README.md AUTHORS
+%{python_sitelib}/heketi
+%{python_sitelib}/heketi-*.egg-info
+
+%files client
+%license LICENSE
+%doc README.md AUTHORS
+%{_bindir}/%{name}-cli
+%{_mandir}/man8/heketi-cli.8*
+%{_datadir}/%{name}/topology-sample.json
+%{_datadir}/bash-completion/completions/%{name}-cli.sh
+
+%files templates
+%license LICENSE
+%doc README.md AUTHORS
+%{_datadir}/%{name}/templates/*
+%{_datadir}/%{name}/openshift/*
 
 %if 0%{?with_devel}
 %files devel -f devel.file-list
@@ -298,6 +392,71 @@ getent passwd %{name} >/dev/null || useradd -r -g %{name} -d %{_sharedstatedir}/
 %endif
 
 %changelog
+* Thu May 25 2017 Jose A. Rivera <jarrpa@redhat.com> - 4.0.0-1
+- Release 4 Final
+
+* Fri Feb 10 2017 Fedora Release Engineering <releng@fedoraproject.org> - 3.0.0-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_26_Mass_Rebuild
+
+* Fri Oct 28 2016 Jose A. Rivera <jarrpa@redhat.com> - 3.0.0-2
+- Add full RELRO support
+
+* Wed Oct 12 2016 Luis Pabón <lpabon@redhat.com> - 3.0.0-1
+- Release 3 Final
+
+* Sat Aug 06 2016 Luis Pabón <lpabon@redhat.com> - 2.0.6-1
+- Release 2 Final
+
+* Thu Jul 21 2016 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.0.3-3
+- https://fedoraproject.org/wiki/Changes/golang1.7
+
+* Tue Jul 19 2016 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.0.3-2
+- https://fedoraproject.org/wiki/Changes/Automatic_Provides_for_Python_RPM_Packages
+
+* Mon Jun 20 2016 Luis Pabón <lpabon@redhat.com> - 2.0.2-3
+- Fixed glusterfs templates
+
+* Mon Jun 13 2016 lpabon <lpabon@redhat.com> - 2.0.1-2
+- Updated deploy-heketi template
+
+* Mon Jun 13 2016 lpabon <lpabon@redhat.com> - 2.0.1-1
+- Support for Heketi Storage in OpenShift
+
+* Thu Jun 02 2016 lpabon <lpabon@redhat.com> - 2.0.0-2
+- Do not create devel or unit_test packages in RHEL
+
+* Thu Jun 02 2016 lpabon <lpabon@redhat.com> - 2.0.0-1
+- Release 2.0.0
+
+* Tue May 24 2016 lpabon <lpabon@redhat.com> - 1.4.2-1
+- Update to the latest template and cli changes
+
+* Tue May 24 2016 lpabon <lpabon@redhat.com> - 1.4.0-2
+- Add patch to use downstream RHGS containers
+
+* Tue May 24 2016 lpabon <lpabon@redhat.com> - 1.4.0-1
+- Able to talk to /hello w/o authentication
+- Heketi-cli can now create PV specs
+- Templates
+
+* Tue May 10 2016 lpabon <lpabon@redhat.com> - 1.3.0-1
+- Kube exec support
+
+* Tue May 03 2016 lpabon <lpabon@redhat.com> - 1.2.0-2
+- Remove dependency on clients
+
+* Sun May 01 2016 lpabon <lpabon@redhat.com> - 1.2.0-1
+- Created client and python rpms
+
+* Sun Apr 03 2016 lpabon <lpabon@redhat.com> - 1.0.2-4
+- Update godeps and strip bundled build
+
+* Mon Feb 22 2016 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.0.2-3
+- https://fedoraproject.org/wiki/Changes/golang1.6
+
+* Wed Feb 03 2016 Fedora Release Engineering <releng@fedoraproject.org> - 1.0.2-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_24_Mass_Rebuild
+
 * Thu Dec 03 2015 lpabon <lpabon@redhat.com> - 1.0.2-1
 - Heketi 1.0.2
 
