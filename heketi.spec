@@ -214,10 +214,10 @@ export GOPATH=$(pwd):%{gopath}
 
 # -s strips debug information
 %if 0%{?rhel} && 0%{?rhel} > 6
-go build -ldflags "-X main.HEKETI_VERSION %{version} -B 0x%{gohash} -s -extldflags '-z relro -z now'" -o %{name}
+go build -ldflags "-X main.HEKETI_VERSION=%{version} -B 0x%{gohash} -s -extldflags '-z relro -z now'" -o %{name}
 
 cd client/cli/go
-go build -ldflags "-X main.HEKETI_CLI_VERSION %{version} -B 0x%{gohash} -s -extldflags '-z relro -z now'" -o %{name}-cli
+go build -ldflags "-X main.HEKETI_CLI_VERSION=%{version} -B 0x%{gohash} -s -extldflags '-z relro -z now'" -o %{name}-cli
 cd ../../..
 %else
 go build -ldflags "-X main.HEKETI_VERSION=%{version} -B 0x%{gohash} -s -extldflags '-z relro -z now'" -o %{name}
