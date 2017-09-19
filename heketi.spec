@@ -30,18 +30,17 @@
 # https://github.com/heketi/heketi
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 %global import_path     %{provider_prefix}
-%global commit          c5f0f5856560148536d51f32cd96d22e6968f2b8
-%global shortcommit     %(c=%{commit}; echo ${c:0:7})
 
 Name:           %{repo}
-Version:        4.0.0
+Version:        5.0.0
 Release:        1%{?dist}
 Summary:        RESTful based volume management framework for GlusterFS
-License:        ASL 2.0
+License:        LGPLv3+ and GPLv2
 URL:            https://%{provider_prefix}
-Source0:        https://%{provider_prefix}/archive/%{commit}/%{repo}-%{shortcommit}.tar.gz
-Source1:        %{name}.service
+Source0:        https://%{provider_prefix}/archive/v%{version}.tar.gz
+Source1:        https://%{provider_prefix}/releases/download/v%{version}/%{name}-deps-v%{version}.tar.gz
 Source2:        %{name}.json
+Source3:        %{name}.service
 Source4:        %{name}.initd
 
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
@@ -148,7 +147,7 @@ providing packages with %{import_path} prefix.
 %package client
 Summary:        Command line client for Heketi
 Group:          System Environment/Libraries
-License:        ASL 2.0
+License:        LGPLv3+ and GPLv2
 
 %description client
 %{summary}
@@ -169,7 +168,7 @@ Heketi and GlusterFS templates for Heketi
 %package -n python-heketi
 Summary:        Python libraries for Heketi
 Group:          System Environment/Libraries
-License:        ASL 2.0
+License:        ASL 2.0 and LGPLv3+
 Requires:       python-jwt
 Requires:       python-requests
 BuildRequires:  python-setuptools
@@ -182,7 +181,7 @@ This package contains python libraries for interacting with Heketi
 
 
 %prep
-%setup -q -n %{repo}-%{commit}
+%setup -q
 
 %build
 mkdir -p src/%{provider}.%{provider_tld}/%{project}
@@ -204,8 +203,8 @@ cd ../../..
 
 # workaround for vendor directory which doesn't have src
 # which is needed by the GOPATH
-cp -a $(pwd)/vendor/* src
-mv vendor _vendor
+mkdir -p ./src
+tar -xvf %{SOURCE1} -C ./src
 
 # Setup GOPATH
 export GOPATH=$(pwd):%{gopath}
@@ -248,6 +247,7 @@ install -m 644 -t %{buildroot}%{_sysconfdir}/%{name} %{SOURCE2}
 install -D -p -m 0644 doc/man/heketi-cli.8 %{buildroot}%{_mandir}/man8/heketi-cli.8
 install -D -p -m 0644 client/cli/go/topology-sample.json \
   %{buildroot}%{_datadir}/%{name}/topology-sample.json
+
 install -D -p -m 0644 extras/openshift/templates/glusterfs-template.json \
   %{buildroot}%{_datadir}/%{name}/templates/glusterfs-template.json
 install -D -p -m 0644 extras/openshift/templates/heketi-template.json \
@@ -260,7 +260,7 @@ install -D -p -m 0644 extras/openshift/service/sample-gluster-service.json \
   %{buildroot}%{_datadir}/%{name}/openshift/sample-gluster-service.json
 
 %if 0%{?with_systemd}
-install -D -p -m 0644 %{SOURCE1} %{buildroot}%{_unitdir}/%{name}.service
+install -D -p -m 0644 %{SOURCE3} %{buildroot}%{_unitdir}/%{name}.service
 %else
 install -D -p -m 0755 %{SOURCE4} %{buildroot}%{_sysconfdir}/init.d/%{name}
 %endif
@@ -392,6 +392,9 @@ getent passwd %{name} >/dev/null || useradd -r -g %{name} -d %{_sharedstatedir}/
 %endif
 
 %changelog
+* Tue Sep 19 2017 Michael Adam <obnox@samba.org> - 5.0.0-1
+- Release 5 final
+
 * Thu May 25 2017 Jose A. Rivera <jarrpa@redhat.com> - 4.0.0-1
 - Release 4 Final
 
