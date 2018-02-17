@@ -33,7 +33,7 @@
 
 Name:           %{repo}
 Version:        5.0.1
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        RESTful based volume management framework for GlusterFS
 License:        LGPLv3+ and GPLv2
 URL:            https://%{provider_prefix}
@@ -392,6 +392,9 @@ getent passwd %{name} >/dev/null || useradd -r -g %{name} -d %{_sharedstatedir}/
 %endif
 
 %changelog
+* Sat Feb 17 2018 Alessandro Menti <alessandro.menti@alessandromenti.it> - 5.0.1-2
+- Fix a wrong "-config" switch in the service configuration files
+
 * Tue Dec 19 2017 Niels de Vos <ndevos@redhat.com> - 5.0.1-1
 - Release 5.0.1 final
 
