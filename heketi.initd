@@ -46,7 +46,7 @@ start() {
         chown ${user}:${user} $pidfile
 
         echo -n "Starting $prog: "
-        daemon --user heketi "$exec -config=${config} &>> $logfile & echo \$! > $pidfile"
+        daemon --user heketi "$exec --config=${config} &>> $logfile & echo \$! > $pidfile"
         retval=$?
         if [ $retval -eq 0 ] ; then
             touch $lockfile
