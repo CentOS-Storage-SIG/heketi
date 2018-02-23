@@ -1,11 +1,13 @@
 %if 0%{?fedora}
 %global with_devel 1
+%global with_python 1
 %global with_bundled 1
 %global with_debug 0
 %global with_check 1
 %global with_unit_test 1
 %else
 %global with_devel 0
+%global with_python 0
 %global with_bundled 1
 %global with_debug 0
 %global with_check 1
@@ -32,12 +34,12 @@
 %global import_path     %{provider_prefix}
 
 Name:           %{repo}
-Version:        5.0.1
+Version:        6.0.0
 Release:        1%{?dist}
 Summary:        RESTful based volume management framework for GlusterFS
 License:        LGPLv3+ and GPLv2
 URL:            https://%{provider_prefix}
-Source0:        https://%{provider_prefix}/archive/v%{version}.tar.gz
+Source0:        https://%{provider_prefix}/archive/v%{version}/%{name}-v%{version}.tar.gz
 Source1:        https://%{provider_prefix}/releases/download/v%{version}/%{name}-deps-v%{version}.tar.gz
 Source2:        %{name}.json
 Source3:        %{name}.service
@@ -164,7 +166,7 @@ License:        ASL 2.0
 
 Heketi and GlusterFS templates for Heketi
 
-
+%if 0%{with_python}
 %package -n python-heketi
 Summary:        Python libraries for Heketi
 Group:          System Environment/Libraries
@@ -178,7 +180,7 @@ BuildRequires:  python2-devel
 %{summary}
 
 This package contains python libraries for interacting with Heketi
-
+%endif
 
 %prep
 %setup -q
@@ -229,14 +231,18 @@ cd ../../..
 %endif
 
 # Python
+%if 0%{with_python}
 cd client/api/python
 %{__python2} setup.py build
+%endif
 
 %install
 # Python
+%if 0%{with_python}
 cd client/api/python
 %{__python2} setup.py install -O1 --skip-build --root %{buildroot}
 cd ../../..
+%endif
 
 install -D -p -m 0755 client/cli/go/%{name}-cli.sh \
   %{buildroot}%{_datadir}/bash-completion/completions/%{name}-cli.sh
@@ -244,7 +250,7 @@ install -D -p -m 0755 %{name} %{buildroot}%{_bindir}/%{name}
 install -D -p -m 0755 client/cli/go/%{name}-cli %{buildroot}%{_bindir}/%{name}-cli
 install -d -m 0755 %{buildroot}%{_sysconfdir}/%{name}
 install -m 644 -t %{buildroot}%{_sysconfdir}/%{name} %{SOURCE2}
-install -D -p -m 0644 doc/man/heketi-cli.8 %{buildroot}%{_mandir}/man8/heketi-cli.8
+install -D -p -m 0644 docs/man/heketi-cli.8 %{buildroot}%{_mandir}/man8/heketi-cli.8
 install -D -p -m 0644 client/cli/go/topology-sample.json \
   %{buildroot}%{_datadir}/%{name}/topology-sample.json
 
@@ -357,11 +363,13 @@ getent passwd %{name} >/dev/null || useradd -r -g %{name} -d %{_sharedstatedir}/
 %{_sysconfdir}/init.d/%{name}
 %endif
 
+%if 0%{with_python}
 %files -n python-heketi
 %license LICENSE
 %doc README.md AUTHORS
 %{python_sitelib}/heketi
 %{python_sitelib}/heketi-*.egg-info
+%endif
 
 %files client
 %license LICENSE
@@ -392,6 +400,10 @@ getent passwd %{name} >/dev/null || useradd -r -g %{name} -d %{_sharedstatedir}/
 %endif
 
 %changelog
+* Fri Feb 23 2018 Niels de Vos <ndevos@redhat.com> - 6.0.0-1
+- Release 6,0.0 final
+- Do not build python-heketi
+
 * Tue Dec 19 2017 Niels de Vos <ndevos@redhat.com> - 5.0.1-1
 - Release 5.0.1 final
 
