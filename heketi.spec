@@ -32,9 +32,11 @@
 # https://github.com/heketi/heketi
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 %global import_path     %{provider_prefix}
+%global commit          da761a7d57de0c1bebd0922402f340ecbcd517a2
+%global shortcommit     %(c=%{commit}; echo ${c:0:7})
 
 Name:           %{repo}
-Version:        6.0.0
+Version:        7.0.0
 Release:        1%{?dist}
 Summary:        RESTful based volume management framework for GlusterFS
 License:        LGPLv3+ and GPLv2
@@ -400,6 +402,9 @@ getent passwd %{name} >/dev/null || useradd -r -g %{name} -d %{_sharedstatedir}/
 %endif
 
 %changelog
+* Tue Jun 5 2018 Niels de Vos <ndevos@redhat.com> - 7.0.0-1
+- Release 7.0.0
+
 * Fri Feb 23 2018 Niels de Vos <ndevos@redhat.com> - 6.0.0-1
 - Release 6,0.0 final
 - Do not build python-heketi
