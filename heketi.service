@@ -5,7 +5,7 @@ Description=Heketi Server
 Type=simple
 WorkingDirectory=/var/lib/heketi
 User=heketi
-ExecStart=/usr/bin/heketi -config=/etc/heketi/heketi.json
+ExecStart=/usr/bin/heketi --config=/etc/heketi/heketi.json
 Restart=on-failure
 StandardOutput=syslog
 StandardError=syslog
