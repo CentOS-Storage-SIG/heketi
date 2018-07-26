@@ -37,7 +37,7 @@
 
 Name:           %{repo}
 Version:        7.0.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        RESTful based volume management framework for GlusterFS
 License:        LGPLv3+ and GPLv2
 URL:            https://%{provider_prefix}
@@ -402,6 +402,9 @@ getent passwd %{name} >/dev/null || useradd -r -g %{name} -d %{_sharedstatedir}/
 %endif
 
 %changelog
+* Thu Jul 26 2018 Niels de Vos <ndevos@redhat.com> - 7.0.0-2
+- Update heketi.service (Pete Travis PR#4)
+
 * Tue Jun 5 2018 Niels de Vos <ndevos@redhat.com> - 7.0.0-1
 - Release 7.0.0
 
