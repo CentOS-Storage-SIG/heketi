@@ -10,7 +10,9 @@
 %global with_python 0
 %global with_bundled 1
 %global with_debug 0
-%global with_check 1
+# there is a race in the test-cases:
+# https://github.com/heketi/heketi/issues/1468
+%global with_check 0
 %global with_unit_test 0
 %endif
 
@@ -34,7 +36,7 @@
 %global import_path     %{provider_prefix}
 
 Name:           %{repo}
-Version:        8.0.0
+Version:        9.0.0
 Release:        1%{?dist}
 Summary:        RESTful based volume management framework for GlusterFS
 License:        LGPLv3+ and GPLv2
@@ -47,9 +49,9 @@ Source4:        %{name}.initd
 
 # e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
 ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 %{arm}}
-# If go_compiler is not set to 1, there is no virtual provide. Use golang instead.
-BuildRequires:  %{?go_compiler:compiler(go-compiler)}%{!?go_compiler:golang}
-
+BuildRequires:  go-toolset-7-golang-bin
+BuildRequires:  go-toolset-7-runtime
+BuildRequires:  openssl-devel
 Requires(pre):  shadow-utils
 
 %if 0%{?with_systemd}
@@ -128,8 +130,6 @@ building other packages which use import path with
 %if 0%{?with_unit_test} && 0%{?with_devel}
 %package unit-test-devel
 Summary:         Unit tests for %{name} package
-# If go_compiler is not set to 1, there is no virtual provide. Use golang instead.
-BuildRequires:  %{?go_compiler:compiler(go-compiler)}%{!?go_compiler:golang}
 
 %if 0%{?with_check}
 #Here comes all BuildRequires: PACKAGE the unit tests
@@ -182,6 +182,9 @@ BuildRequires:  python2-devel
 This package contains python libraries for interacting with Heketi
 %endif
 
+%enable_gotoolset7
+%{?!gopath: %global gopath %{_datadir}/gocode}
+
 %prep
 %setup -q
 
@@ -193,11 +196,11 @@ ln -s $(pwd) src/%{provider}.%{provider_tld}/%{project}/%{repo}
 %if ! 0%{?with_bundled}
 export GOPATH=$(pwd):%{gopath}
 export LDFLAGS="-X main.HEKETI_VERSION=%{version}"
-%gobuild -o %{name}
+go build -o %{name}
 
 export LDFLAGS="-X main.HEKETI_CLI_VERSION=%{version}"
 cd client/cli/go
-%gobuild -o %{name}-cli
+go build -o %{name}-cli
 cd ../../..
 %else
 
@@ -400,6 +403,10 @@ getent passwd %{name} >/dev/null || useradd -r -g %{name} -d %{_sharedstatedir}/
 %endif
 
 %changelog
+* Fri Apr 12 2019 Niels de Vos <ndevos@redhat.com> - 9.0.0-1
+- Release 9.0.0
+- Use SCL go-toolset for building
+
 * Thu Sep 13 2018 Niels de Vos <ndevos@redhat.com> - 8.0.0-1
 - Release 8.0.0
 
