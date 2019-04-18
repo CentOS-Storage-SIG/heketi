@@ -47,8 +47,8 @@ Source2:        %{name}.json
 Source3:        %{name}.service
 Source4:        %{name}.initd
 
-# e.g. el6 has ppc64 arch without gcc-go, so EA tag is required
-ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 %{arm}}
+# go-toolset SCLo is not available for non-x86_64 architectures
+ExclusiveArch:  x86_64
 BuildRequires:  go-toolset-7-golang-bin
 BuildRequires:  go-toolset-7-runtime
 BuildRequires:  openssl-devel
@@ -406,6 +406,7 @@ getent passwd %{name} >/dev/null || useradd -r -g %{name} -d %{_sharedstatedir}/
 * Fri Apr 12 2019 Niels de Vos <ndevos@redhat.com> - 9.0.0-1
 - Release 9.0.0
 - Use SCL go-toolset for building
+- Build for x86_64 only due to missing go-toolset on other arches
 
 * Thu Sep 13 2018 Niels de Vos <ndevos@redhat.com> - 8.0.0-1
 - Release 8.0.0
